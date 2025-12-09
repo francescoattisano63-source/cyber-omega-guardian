@@ -15,6 +15,12 @@ interface FormData {
   hasTraining: string;
   hasMFA: string;
   hasIncidentPlan: string;
+  hasRiskManagement: string;
+  hasSupplyChainSecurity: string;
+  hasIncidentReporting: string;
+  hasCryptography: string;
+  hasAssetManagement: string;
+  hasAccessControl: string;
 }
 
 const AssessmentSection = () => {

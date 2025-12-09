@@ -19,6 +19,13 @@ interface FormData {
   hasTraining: string;
   hasMFA: string;
   hasIncidentPlan: string;
+  // NIS2 Compliance fields
+  hasRiskManagement: string;
+  hasSupplyChainSecurity: string;
+  hasIncidentReporting: string;
+  hasCryptography: string;
+  hasAssetManagement: string;
+  hasAccessControl: string;
 }
 
 interface AssessmentFormProps {
@@ -41,7 +48,14 @@ const AssessmentForm = ({ onComplete }: AssessmentFormProps) => {
     hasAntivirus: "",
     hasTraining: "",
     hasMFA: "",
-    hasIncidentPlan: ""
+    hasIncidentPlan: "",
+    // NIS2 fields
+    hasRiskManagement: "",
+    hasSupplyChainSecurity: "",
+    hasIncidentReporting: "",
+    hasCryptography: "",
+    hasAssetManagement: "",
+    hasAccessControl: ""
   });
 
   const updateField = (field: keyof FormData, value: string) => {
@@ -51,18 +65,25 @@ const AssessmentForm = ({ onComplete }: AssessmentFormProps) => {
   const calculateScore = () => {
     let score = 0;
     const securityFields = ['hasFirewall', 'hasBackup', 'hasAntivirus', 'hasTraining', 'hasMFA', 'hasIncidentPlan'];
+    const nis2Fields = ['hasRiskManagement', 'hasSupplyChainSecurity', 'hasIncidentReporting', 'hasCryptography', 'hasAssetManagement', 'hasAccessControl'];
     
     securityFields.forEach(field => {
       const value = formData[field as keyof FormData];
-      if (value === 'si') score += 15;
-      else if (value === 'parziale') score += 8;
+      if (value === 'si') score += 8;
+      else if (value === 'parziale') score += 4;
+    });
+
+    nis2Fields.forEach(field => {
+      const value = formData[field as keyof FormData];
+      if (value === 'si') score += 9;
+      else if (value === 'parziale') score += 4;
     });
 
     // Add some base score based on company size
-    if (formData.employees === '1-10') score += 5;
-    else if (formData.employees === '11-50') score += 8;
-    else if (formData.employees === '51-200') score += 10;
-    else if (formData.employees === '200+') score += 10;
+    if (formData.employees === '1-10') score += 2;
+    else if (formData.employees === '11-50') score += 3;
+    else if (formData.employees === '51-200') score += 4;
+    else if (formData.employees === '200+') score += 4;
 
     return Math.min(score, 100);
   };
@@ -94,14 +115,20 @@ const AssessmentForm = ({ onComplete }: AssessmentFormProps) => {
     if (step === 3) {
       return formData.hasFirewall && formData.hasBackup && formData.hasAntivirus;
     }
-    return formData.hasTraining && formData.hasMFA && formData.hasIncidentPlan;
+    if (step === 4) {
+      return formData.hasTraining && formData.hasMFA && formData.hasIncidentPlan;
+    }
+    if (step === 5) {
+      return formData.hasRiskManagement && formData.hasSupplyChainSecurity && formData.hasIncidentReporting;
+    }
+    return formData.hasCryptography && formData.hasAssetManagement && formData.hasAccessControl;
   };
 
   return (
     <div className="glass rounded-2xl p-6 md:p-8 max-w-2xl mx-auto">
       {/* Progress Bar */}
       <div className="flex items-center gap-2 mb-8">
-        {[1, 2, 3, 4].map((s) => (
+        {[1, 2, 3, 4, 5, 6].map((s) => (
           <div key={s} className="flex-1 flex items-center">
             <div 
               className={`h-2 flex-1 rounded-full transition-colors ${
@@ -357,6 +384,134 @@ const AssessmentForm = ({ onComplete }: AssessmentFormProps) => {
         </div>
       )}
 
+      {/* Step 5: NIS2 Compliance Part 1 */}
+      {step === 5 && (
+        <div className="space-y-6 animate-fade-in-up">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
+              <Shield className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h3 className="font-display text-xl font-semibold">Compliance NIS2</h3>
+              <p className="text-sm text-muted-foreground">Governance e Risk Management</p>
+            </div>
+          </div>
+
+          <div className="p-4 rounded-xl bg-warning/10 border border-warning/30 mb-4">
+            <p className="text-sm text-warning font-medium">⚠️ La Direttiva NIS2 è in vigore dal 17 Ottobre 2024. La conformità è obbligatoria per molte aziende.</p>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <Label>Avete un sistema di gestione del rischio cyber? *</Label>
+              <Select value={formData.hasRiskManagement} onValueChange={(v) => updateField('hasRiskManagement', v)}>
+                <SelectTrigger className="mt-1.5">
+                  <SelectValue placeholder="Seleziona risposta" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="si">Sì, documentato e aggiornato</SelectItem>
+                  <SelectItem value="parziale">In fase di implementazione</SelectItem>
+                  <SelectItem value="no">No</SelectItem>
+                  <SelectItem value="non-so">Non so</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Valutate la sicurezza della supply chain? *</Label>
+              <Select value={formData.hasSupplyChainSecurity} onValueChange={(v) => updateField('hasSupplyChainSecurity', v)}>
+                <SelectTrigger className="mt-1.5">
+                  <SelectValue placeholder="Seleziona risposta" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="si">Sì, con audit periodici dei fornitori</SelectItem>
+                  <SelectItem value="parziale">Solo per fornitori critici</SelectItem>
+                  <SelectItem value="no">No</SelectItem>
+                  <SelectItem value="non-so">Non so</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Avete procedure di notifica incidenti (24/72h)? *</Label>
+              <Select value={formData.hasIncidentReporting} onValueChange={(v) => updateField('hasIncidentReporting', v)}>
+                <SelectTrigger className="mt-1.5">
+                  <SelectValue placeholder="Seleziona risposta" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="si">Sì, conformi ai requisiti NIS2</SelectItem>
+                  <SelectItem value="parziale">Procedure esistenti ma non allineate</SelectItem>
+                  <SelectItem value="no">No</SelectItem>
+                  <SelectItem value="non-so">Non so</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Step 6: NIS2 Compliance Part 2 */}
+      {step === 6 && (
+        <div className="space-y-6 animate-fade-in-up">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
+              <Shield className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h3 className="font-display text-xl font-semibold">Compliance NIS2</h3>
+              <p className="text-sm text-muted-foreground">Sicurezza Tecnica e Accessi</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <Label>Utilizzate crittografia per dati sensibili? *</Label>
+              <Select value={formData.hasCryptography} onValueChange={(v) => updateField('hasCryptography', v)}>
+                <SelectTrigger className="mt-1.5">
+                  <SelectValue placeholder="Seleziona risposta" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="si">Sì, end-to-end e at-rest</SelectItem>
+                  <SelectItem value="parziale">Solo in transito (HTTPS)</SelectItem>
+                  <SelectItem value="no">No</SelectItem>
+                  <SelectItem value="non-so">Non so</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Avete un inventario degli asset IT/OT? *</Label>
+              <Select value={formData.hasAssetManagement} onValueChange={(v) => updateField('hasAssetManagement', v)}>
+                <SelectTrigger className="mt-1.5">
+                  <SelectValue placeholder="Seleziona risposta" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="si">Sì, completo e aggiornato</SelectItem>
+                  <SelectItem value="parziale">Parziale o non aggiornato</SelectItem>
+                  <SelectItem value="no">No</SelectItem>
+                  <SelectItem value="non-so">Non so</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Gestite gli accessi con principio least privilege? *</Label>
+              <Select value={formData.hasAccessControl} onValueChange={(v) => updateField('hasAccessControl', v)}>
+                <SelectTrigger className="mt-1.5">
+                  <SelectValue placeholder="Seleziona risposta" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="si">Sì, con revisioni periodiche</SelectItem>
+                  <SelectItem value="parziale">In parte implementato</SelectItem>
+                  <SelectItem value="no">No</SelectItem>
+                  <SelectItem value="non-so">Non so</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Navigation */}
       <div className="flex items-center justify-between mt-8 pt-6 border-t border-border">
         <Button
@@ -367,7 +522,7 @@ const AssessmentForm = ({ onComplete }: AssessmentFormProps) => {
           Indietro
         </Button>
 
-        {step < 4 ? (
+        {step < 6 ? (
           <Button
             variant="hero"
             onClick={() => setStep(s => s + 1)}
