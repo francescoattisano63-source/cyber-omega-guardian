@@ -30,6 +30,9 @@ const Header = () => {
             <a href="#come-funziona" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               Come Funziona
             </a>
+            <a href="#dashboard" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+              Dashboard
+            </a>
             <a href="#valutazione" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               Valutazione
             </a>
@@ -66,6 +69,13 @@ const Header = () => {
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Come Funziona
+              </a>
+              <a 
+                href="#dashboard" 
+                className="text-muted-foreground hover:text-foreground transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Dashboard
               </a>
               <a 
                 href="#valutazione" 
