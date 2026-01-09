@@ -1,9 +1,27 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+// Get allowed origin from environment or default to Lovable preview domain
+const getAllowedOrigin = (requestOrigin: string | null): string => {
+  const allowedOrigins = [
+    'https://wpczgwxsriezaubncuom.lovableproject.com',
+    'https://lovable.dev',
+    'http://localhost:5173',
+    'http://localhost:3000'
+  ]
+  
+  if (requestOrigin && allowedOrigins.some(origin => requestOrigin.startsWith(origin) || requestOrigin.includes('lovableproject.com') || requestOrigin.includes('lovable.dev'))) {
+    return requestOrigin
+  }
+  
+  return allowedOrigins[0]
 }
+
+const getCorsHeaders = (origin: string | null) => ({
+  'Access-Control-Allow-Origin': getAllowedOrigin(origin),
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Credentials': 'true',
+})
 
 interface RiskAssessment {
   score: number;
@@ -121,11 +139,44 @@ function calculateDomainRiskScore(analysis: any): RiskAssessment {
 }
 
 serve(async (req) => {
+  const origin = req.headers.get('origin')
+  const corsHeaders = getCorsHeaders(origin)
+
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
 
   try {
+    // Authentication check
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Autenticazione richiesta' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Validate the JWT token
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!
+    
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+
+    const token = authHeader.replace('Bearer ', '')
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Token non valido o scaduto' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     const { domain } = await req.json()
     
     if (!domain) {
@@ -164,11 +215,8 @@ serve(async (req) => {
           report = await vtRes.json()
         } else if (vtRes.status === 429) {
           vtError = true
-        } else {
-          console.error('VirusTotal API request failed')
         }
       } catch {
-        console.error('VirusTotal API request failed')
         vtError = true
       }
     } else {
@@ -217,7 +265,6 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch {
-    console.error('Request processing failed')
     return new Response(
       JSON.stringify({ error: 'Servizio temporaneamente non disponibile. Riprova tra qualche minuto.' }),
       { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
