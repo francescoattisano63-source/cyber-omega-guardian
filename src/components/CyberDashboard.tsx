@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
+import RiskAssessment, { RiskAssessmentData } from "@/components/RiskAssessment";
 import { 
   Shield, 
   Mail, 
@@ -19,7 +20,9 @@ import {
   Building2,
   Loader2,
   Lock,
-  ExternalLink
+  ExternalLink,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 
 interface BreachInfo {
@@ -46,6 +49,11 @@ interface EmailResult {
       data_breach: boolean;
     };
   } | null;
+  riskAssessment: RiskAssessmentData;
+  sourceStatus: {
+    hibp: 'ok' | 'unavailable';
+    emailrep: 'ok' | 'unavailable';
+  };
 }
 
 interface DomainResult {
@@ -64,6 +72,10 @@ interface DomainResult {
     registrar: string;
     creationDate: string;
   } | null;
+  riskAssessment: RiskAssessmentData;
+  sourceStatus: {
+    virustotal: 'ok' | 'unavailable';
+  };
 }
 
 const CyberDashboard = () => {
@@ -75,6 +87,8 @@ const CyberDashboard = () => {
   const [loadingEmail, setLoadingEmail] = useState(false);
   const [loadingDomain, setLoadingDomain] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showEmailDetails, setShowEmailDetails] = useState(false);
+  const [showDomainDetails, setShowDomainDetails] = useState(false);
 
   const handleEmailCheck = async () => {
     if (!email) return;
@@ -86,6 +100,7 @@ const CyberDashboard = () => {
 
     setLoadingEmail(true);
     setError(null);
+    setEmailResult(null);
     
     try {
       const { data, error: fnError } = await supabase.functions.invoke('check-email', {
@@ -93,10 +108,14 @@ const CyberDashboard = () => {
       });
       
       if (fnError) throw fnError;
+      if (data?.error) {
+        setError(data.error);
+        return;
+      }
       setEmailResult(data);
     } catch (err) {
-      console.error('Email check error:', err);
-      setError("Errore durante il controllo dell'email");
+      console.error('Email check error');
+      setError("Errore durante il controllo dell'email. Riprova tra qualche minuto.");
     } finally {
       setLoadingEmail(false);
     }
@@ -112,6 +131,7 @@ const CyberDashboard = () => {
 
     setLoadingDomain(true);
     setError(null);
+    setDomainResult(null);
     
     try {
       const { data, error: fnError } = await supabase.functions.invoke('check-domain', {
@@ -119,10 +139,14 @@ const CyberDashboard = () => {
       });
       
       if (fnError) throw fnError;
+      if (data?.error) {
+        setError(data.error);
+        return;
+      }
       setDomainResult(data);
     } catch (err) {
-      console.error('Domain check error:', err);
-      setError("Errore durante il controllo del dominio");
+      console.error('Domain check error');
+      setError("Errore durante il controllo del dominio. Riprova tra qualche minuto.");
     } finally {
       setLoadingDomain(false);
     }
@@ -153,10 +177,10 @@ const CyberDashboard = () => {
             <span className="ml-2">Piano {level}</span>
           </Badge>
           <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-            Cyber Guardian Dashboard
+            Cyber Omega Guardian Dashboard
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Monitora la sicurezza delle tue email e domini in tempo reale
+            Valutazione del rischio basata su fonti affidabili per email e domini
           </p>
         </div>
 
@@ -164,7 +188,7 @@ const CyberDashboard = () => {
           <div className="max-w-4xl mx-auto mb-6">
             <Card className="border-destructive/50 bg-destructive/10">
               <CardContent className="pt-4 flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-destructive" />
+                <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0" />
                 <span className="text-destructive">{error}</span>
               </CardContent>
             </Card>
@@ -193,10 +217,10 @@ const CyberDashboard = () => {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Mail className="h-5 w-5 text-primary" />
-                    Verifica Email Breaches
+                    Valutazione Rischio Email
                   </CardTitle>
                   <CardDescription>
-                    Controlla se un indirizzo email è stato compromesso in data breach conosciuti
+                    Analizza il rischio associato a un indirizzo email verificando data breach e reputazione
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -207,6 +231,7 @@ const CyberDashboard = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className="flex-1"
+                      onKeyDown={(e) => e.key === 'Enter' && handleEmailCheck()}
                     />
                     <Button 
                       onClick={handleEmailCheck} 
@@ -214,84 +239,125 @@ const CyberDashboard = () => {
                       className="bg-primary hover:bg-primary/90"
                     >
                       {loadingEmail ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          Analisi...
+                        </>
                       ) : (
-                        "Verifica"
+                        "Analizza"
                       )}
                     </Button>
                   </div>
 
-                  {emailResult && (
+                  {/* Loading State */}
+                  {loadingEmail && (
+                    <div className="text-center py-8">
+                      <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary mb-3" />
+                      <p className="text-muted-foreground">Analisi in corso...</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Consultando Have I Been Pwned e EmailRep.io
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Results */}
+                  {emailResult && !loadingEmail && (
                     <div className="space-y-4 mt-6">
-                      {/* Breach Results */}
-                      <div className="p-4 rounded-lg bg-background/50 border border-border/50">
-                        <h4 className="font-semibold mb-3 flex items-center gap-2">
-                          {emailResult.breachCount > 0 ? (
-                            <>
-                              <XCircle className="h-5 w-5 text-destructive" />
-                              <span className="text-destructive">
-                                {emailResult.breachCount} Data Breach Trovati
-                              </span>
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle2 className="h-5 w-5 text-primary" />
-                              <span className="text-primary">Nessun Breach Trovato</span>
-                            </>
-                          )}
-                        </h4>
-                        
-                        {emailResult.breaches.length > 0 && (
-                          <div className="space-y-2 max-h-60 overflow-y-auto">
-                            {emailResult.breaches.map((breach, idx) => (
-                              <div 
-                                key={idx}
-                                className="p-3 rounded bg-destructive/10 border border-destructive/30"
-                              >
-                                <div className="font-medium text-destructive">{breach.Title}</div>
-                                <div className="text-sm text-muted-foreground">
-                                  Data breach: {breach.BreachDate}
+                      {/* Risk Assessment */}
+                      <RiskAssessment 
+                        assessment={emailResult.riskAssessment}
+                        title={emailResult.email}
+                      />
+
+                      {/* Expandable Technical Details */}
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-between"
+                        onClick={() => setShowEmailDetails(!showEmailDetails)}
+                      >
+                        <span className="text-sm text-muted-foreground">
+                          Dettagli tecnici
+                        </span>
+                        {showEmailDetails ? (
+                          <ChevronUp className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        )}
+                      </Button>
+
+                      {showEmailDetails && (
+                        <div className="space-y-4">
+                          {/* Breach Results */}
+                          <div className="p-4 rounded-lg bg-background/50 border border-border/50">
+                            <h4 className="font-semibold mb-3 flex items-center gap-2">
+                              {emailResult.breachCount > 0 ? (
+                                <>
+                                  <XCircle className="h-5 w-5 text-destructive" />
+                                  <span className="text-destructive">
+                                    {emailResult.breachCount} Data Breach Trovati
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                                  <span className="text-emerald-500">Nessun Breach Trovato</span>
+                                </>
+                              )}
+                            </h4>
+                            
+                            {emailResult.breaches.length > 0 && (
+                              <div className="space-y-2 max-h-60 overflow-y-auto">
+                                {emailResult.breaches.map((breach, idx) => (
+                                  <div 
+                                    key={idx}
+                                    className="p-3 rounded bg-destructive/10 border border-destructive/30"
+                                  >
+                                    <div className="font-medium text-destructive">{breach.Title}</div>
+                                    <div className="text-sm text-muted-foreground">
+                                      Data breach: {breach.BreachDate}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                      Dati esposti: {breach.DataClasses?.join(", ") || "N/A"}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Reputation Results */}
+                          {emailResult.reputation && (
+                            <div className="p-4 rounded-lg bg-background/50 border border-border/50">
+                              <h4 className="font-semibold mb-3 flex items-center gap-2">
+                                <Shield className="h-5 w-5 text-cyber-accent" />
+                                Reputazione Email (EmailRep.io)
+                              </h4>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <span className="text-sm text-muted-foreground">Reputazione:</span>
+                                  <Badge className={
+                                    emailResult.reputation.reputation === "high" 
+                                      ? "bg-emerald-500/20 text-emerald-500 ml-2"
+                                      : emailResult.reputation.reputation === "medium"
+                                      ? "bg-amber-500/20 text-amber-500 ml-2"
+                                      : "bg-destructive/20 text-destructive ml-2"
+                                  }>
+                                    {emailResult.reputation.reputation}
+                                  </Badge>
                                 </div>
-                                <div className="text-xs text-muted-foreground mt-1">
-                                  Dati esposti: {breach.DataClasses?.join(", ") || "N/A"}
+                                <div>
+                                  <span className="text-sm text-muted-foreground">Sospetto:</span>
+                                  <Badge className={
+                                    emailResult.reputation.suspicious 
+                                      ? "bg-destructive/20 text-destructive ml-2"
+                                      : "bg-emerald-500/20 text-emerald-500 ml-2"
+                                  }>
+                                    {emailResult.reputation.suspicious ? "Sì" : "No"}
+                                  </Badge>
                                 </div>
                               </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Reputation Results */}
-                      {emailResult.reputation && (
-                        <div className="p-4 rounded-lg bg-background/50 border border-border/50">
-                          <h4 className="font-semibold mb-3 flex items-center gap-2">
-                            <Shield className="h-5 w-5 text-cyber-accent" />
-                            Reputazione Email
-                          </h4>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <span className="text-sm text-muted-foreground">Reputazione:</span>
-                              <Badge className={
-                                emailResult.reputation.reputation === "high" 
-                                  ? "bg-primary/20 text-primary ml-2"
-                                  : emailResult.reputation.reputation === "medium"
-                                  ? "bg-yellow-500/20 text-yellow-500 ml-2"
-                                  : "bg-destructive/20 text-destructive ml-2"
-                              }>
-                                {emailResult.reputation.reputation}
-                              </Badge>
                             </div>
-                            <div>
-                              <span className="text-sm text-muted-foreground">Sospetto:</span>
-                              <Badge className={
-                                emailResult.reputation.suspicious 
-                                  ? "bg-destructive/20 text-destructive ml-2"
-                                  : "bg-primary/20 text-primary ml-2"
-                              }>
-                                {emailResult.reputation.suspicious ? "Sì" : "No"}
-                              </Badge>
-                            </div>
-                          </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -305,10 +371,10 @@ const CyberDashboard = () => {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Globe className="h-5 w-5 text-cyber-accent" />
-                    Analisi Dominio/IP
+                    Valutazione Rischio Dominio/IP
                   </CardTitle>
                   <CardDescription>
-                    Verifica la reputazione e la sicurezza di un dominio o IP
+                    Analizza la reputazione e i potenziali rischi di un dominio o indirizzo IP
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -319,6 +385,7 @@ const CyberDashboard = () => {
                       value={domain}
                       onChange={(e) => setDomain(e.target.value)}
                       className="flex-1"
+                      onKeyDown={(e) => e.key === 'Enter' && handleDomainCheck()}
                     />
                     <Button 
                       onClick={handleDomainCheck} 
@@ -326,67 +393,110 @@ const CyberDashboard = () => {
                       className="bg-cyber-accent hover:bg-cyber-accent/90 text-background"
                     >
                       {loadingDomain ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          Analisi...
+                        </>
                       ) : (
                         "Analizza"
                       )}
                     </Button>
                   </div>
 
-                  {domainResult?.analysis && (
-                    <div className="space-y-4 mt-6">
-                      <div className="p-4 rounded-lg bg-background/50 border border-border/50">
-                        <h4 className="font-semibold mb-3 flex items-center gap-2">
-                          <Shield className="h-5 w-5 text-cyber-accent" />
-                          Risultati Analisi: {domainResult.domain}
-                        </h4>
-                        
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                          <div className="text-center p-3 rounded bg-primary/10">
-                            <div className="text-2xl font-bold text-primary">
-                              {domainResult.analysis.stats.harmless}
-                            </div>
-                            <div className="text-xs text-muted-foreground">Sicuri</div>
-                          </div>
-                          <div className="text-center p-3 rounded bg-destructive/10">
-                            <div className="text-2xl font-bold text-destructive">
-                              {domainResult.analysis.stats.malicious}
-                            </div>
-                            <div className="text-xs text-muted-foreground">Malevoli</div>
-                          </div>
-                          <div className="text-center p-3 rounded bg-yellow-500/10">
-                            <div className="text-2xl font-bold text-yellow-500">
-                              {domainResult.analysis.stats.suspicious}
-                            </div>
-                            <div className="text-xs text-muted-foreground">Sospetti</div>
-                          </div>
-                          <div className="text-center p-3 rounded bg-muted">
-                            <div className="text-2xl font-bold text-muted-foreground">
-                              {domainResult.analysis.stats.undetected}
-                            </div>
-                            <div className="text-xs text-muted-foreground">Non rilevati</div>
-                          </div>
-                        </div>
+                  {/* Loading State */}
+                  {loadingDomain && (
+                    <div className="text-center py-8">
+                      <Loader2 className="h-8 w-8 animate-spin mx-auto text-cyber-accent mb-3" />
+                      <p className="text-muted-foreground">Analisi in corso...</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Consultando VirusTotal
+                      </p>
+                    </div>
+                  )}
 
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Reputazione:</span>
-                            <span>{domainResult.analysis.reputation}</span>
-                          </div>
-                          {domainResult.analysis.registrar && (
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">Registrar:</span>
-                              <span>{domainResult.analysis.registrar}</span>
+                  {/* Results */}
+                  {domainResult && !loadingDomain && (
+                    <div className="space-y-4 mt-6">
+                      {/* Risk Assessment */}
+                      <RiskAssessment 
+                        assessment={domainResult.riskAssessment}
+                        title={domainResult.domain}
+                      />
+
+                      {/* Expandable Technical Details */}
+                      {domainResult.analysis && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            className="w-full justify-between"
+                            onClick={() => setShowDomainDetails(!showDomainDetails)}
+                          >
+                            <span className="text-sm text-muted-foreground">
+                              Dettagli tecnici
+                            </span>
+                            {showDomainDetails ? (
+                              <ChevronUp className="h-4 w-4" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4" />
+                            )}
+                          </Button>
+
+                          {showDomainDetails && (
+                            <div className="p-4 rounded-lg bg-background/50 border border-border/50">
+                              <h4 className="font-semibold mb-3 flex items-center gap-2">
+                                <Shield className="h-5 w-5 text-cyber-accent" />
+                                Analisi VirusTotal: {domainResult.domain}
+                              </h4>
+                              
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                                <div className="text-center p-3 rounded bg-emerald-500/10">
+                                  <div className="text-2xl font-bold text-emerald-500">
+                                    {domainResult.analysis.stats.harmless}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">Sicuri</div>
+                                </div>
+                                <div className="text-center p-3 rounded bg-destructive/10">
+                                  <div className="text-2xl font-bold text-destructive">
+                                    {domainResult.analysis.stats.malicious}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">Malevoli</div>
+                                </div>
+                                <div className="text-center p-3 rounded bg-amber-500/10">
+                                  <div className="text-2xl font-bold text-amber-500">
+                                    {domainResult.analysis.stats.suspicious}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">Sospetti</div>
+                                </div>
+                                <div className="text-center p-3 rounded bg-muted">
+                                  <div className="text-2xl font-bold text-muted-foreground">
+                                    {domainResult.analysis.stats.undetected}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">Non rilevati</div>
+                                </div>
+                              </div>
+
+                              <div className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Reputazione VT:</span>
+                                  <span>{domainResult.analysis.reputation}</span>
+                                </div>
+                                {domainResult.analysis.registrar && (
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Registrar:</span>
+                                    <span>{domainResult.analysis.registrar}</span>
+                                  </div>
+                                )}
+                                {domainResult.analysis.creationDate && (
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Data creazione:</span>
+                                    <span>{new Date(domainResult.analysis.creationDate).toLocaleDateString('it-IT')}</span>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           )}
-                          {domainResult.analysis.creationDate && (
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">Data creazione:</span>
-                              <span>{new Date(domainResult.analysis.creationDate).toLocaleDateString('it-IT')}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                        </>
+                      )}
                     </div>
                   )}
                 </CardContent>
