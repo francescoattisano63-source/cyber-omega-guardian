@@ -35,11 +35,11 @@ serve(async (req) => {
         if (vtRes.ok) {
           report = await vtRes.json()
         } else {
-          const errorData = await vtRes.text()
-          console.error('VirusTotal API error:', vtRes.status, errorData)
+          // Log minimal info without exposing API response details
+          console.error('VirusTotal API request failed')
         }
-      } catch (error) {
-        console.error('VirusTotal API error:', error)
+      } catch {
+        console.error('VirusTotal API request failed')
       }
     }
 
@@ -75,11 +75,12 @@ serve(async (req) => {
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
-  } catch (error) {
-    console.error('Error:', error)
+  } catch {
+    // Log minimal info without exposing error details
+    console.error('Request processing failed')
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ error: 'Service temporarily unavailable' }),
+      { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
 })
